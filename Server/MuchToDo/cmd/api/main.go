@@ -62,7 +62,7 @@ func main() {
 	dbClient, err := database.ConnectMongo(cfg.MongoURI, cfg.DBName)
 	if err != nil {
 		slog.Error("could not connect to MongoDB", slog.Any("error", err))
-		os.Exit(1)
+		// os.Exit(1)
 	}
 	defer func() {
 		if err = dbClient.Disconnect(context.Background()); err != nil {

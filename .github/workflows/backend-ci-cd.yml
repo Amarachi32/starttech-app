@@ -20,8 +20,10 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21' # Adjust to your Go version
-
+          go-version: '1.25' # Adjust to your Go version
+        cache: true
+              # Replace 'backend' with the actual folder name where go.mod/go.sum live
+        cache-dependency-path: Server/MuchToDo/go.sum
       # 2. Security Scan (Using Golang action)
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/golang@master
@@ -54,7 +56,13 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
-
+          
+      # 6. Deploy: Trigger Rolling Update
+      - name: Trigger Rolling Update on ASG
+        run: |
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name starttech-backend-asg \
+            --preferences '{"MinHealthyPercentage": 50}'
 
 # name: Backend CI/CD
 
