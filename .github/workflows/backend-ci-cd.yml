@@ -1,3 +1,17 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths: ['Server/**']
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
 steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -34,6 +48,13 @@ steps:
           docker tag ghcr.io/$REPO_LOWER/backend:latest ghcr.io/$REPO_LOWER/backend:${{ github.sha }}
           docker push ghcr.io/$REPO_LOWER/backend:latest
           docker push ghcr.io/$REPO_LOWER/backend:${{ github.sha }}
+
+      # 4. AWS Auth
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
 
 # name: Backend CI/CD
 
