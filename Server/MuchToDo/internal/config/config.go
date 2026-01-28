@@ -9,7 +9,7 @@ import (
 // Config stores all configuration of the application.
 type Config struct {
 	ServerPort         string   `mapstructure:"PORT"`
-	MongoURI           string   `mapstructure:"MONGO_URI"`
+	MongoURI           string   `mapstructure:"MONGODB_URI"`
 	DBName             string   `mapstructure:"DB_NAME"`
 	JWTSecretKey       string   `mapstructure:"JWT_SECRET_KEY"`
 	JWTExpirationHours int      `mapstructure:"JWT_EXPIRATION_HOURS"`
