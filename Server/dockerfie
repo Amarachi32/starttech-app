@@ -8,7 +8,7 @@ RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api
 
 # Stage 2: Final Image
-#check file
+#cp
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 
