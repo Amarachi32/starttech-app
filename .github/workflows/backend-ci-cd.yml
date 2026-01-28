@@ -22,7 +22,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --file=Server/package.json
+          args: --file=Server/MuchToDo/go.mod
 
       # 2. Login to GitHub Container Registry
       - name: Login to GHCR
