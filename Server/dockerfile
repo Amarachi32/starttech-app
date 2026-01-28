@@ -3,8 +3,10 @@ FROM golang:1.21-alpine AS builder
 RUN apk add --no-cache git
 WORKDIR /app
 #COPY . .
-COPY go.mod go.sum ./
+#COPY go.mod go.sum ./
+COPY MuchToDo/go.mod MuchToDo/go.sum* ./
 RUN go mod download
+COPY MuchToDo/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api
 
 # Stage 2: Final Image
