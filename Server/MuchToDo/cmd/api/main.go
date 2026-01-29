@@ -46,62 +46,113 @@ import (
 const usernameCacheSentinelKey = "username_cache_initialized"
 const usernameCacheTTL = 24 * time.Hour
 
+// func main() {
+// 	// 1. Load Configuration
+// 	cfg, err := config.LoadConfig(".")
+// 	if os.Getenv("MONGODB_URI") != "" {
+//     cfg.MongoURI = os.Getenv("MONGODB_URI")
+// 	}
+// 	if err != nil {
+// 		log.Fatalf("could not load config: %v", err)
+// 	}
+
+// 	// --- Logger ---
+// 	// This must be initialized before any other component that might log.
+// 	logger.InitLogger(cfg)
+// 	slog.Info("Logger initialized", "level", cfg.LogLevel, "format", cfg.LogFormat)
+
+// 	// // 2. Connect to Database
+// 	// dbClient, err := database.ConnectMongo(cfg.MongoURI, cfg.DBName)
+// 	// if err != nil {
+// 	// 	slog.Error("could not connect to MongoDB", slog.Any("error", err))
+// 	// 	 os.Exit(1)
+// 	// }
+// 	// defer func() {
+// 	// 	if err = dbClient.Disconnect(context.Background()); err != nil {
+// 	// 		slog.Error("Error disconnecting from MongoDB", slog.Any("error", err))
+// 	// 	}
+// 	// }()
+// 	// slog.Info("Successfully connected to MongoDB.")
+
+// 	// 2. Connect to Database (optional)
+// 	var dbClient *mongo.Client
+
+// 	if cfg.MongoURI != "" {
+// 		dbClient, err = database.ConnectMongo(cfg.MongoURI, cfg.DBName)
+// 		if err != nil {
+// 			slog.Error("could not connect to MongoDB", slog.Any("error", err))
+// 			os.Exit(1)
+// 		}
+// 		defer func() {
+// 			if err = dbClient.Disconnect(context.Background()); err != nil {
+// 				slog.Error("Error disconnecting from MongoDB", slog.Any("error", err))
+// 			}
+// 		}()
+// 		slog.Info("Successfully connected to MongoDB.")
+// 	} else {
+// 		slog.Warn("No MongoDB URI provided. Skipping database connection.")
+// 	}
+
+// 	// 3. Initialize Services (Cache, Auth)
+// 	cacheService := cache.NewCacheService(cfg)
+// 	tokenService := auth.NewTokenService(cfg.JWTSecretKey, cfg.JWTExpirationHours)
+
+// 	// Preload usernames into cache if enabled
+// 	preloadUsernamesIntoCache(dbClient, cacheService, cfg)
+
+// 	// 4. Set up API router
+// 	router := setupRouter(dbClient, cfg, tokenService, cacheService)
+
+// 	// 5. Start Server with graceful shutdown
+// 	startServer(router, cfg.ServerPort)
+// }
+
 func main() {
-	// 1. Load Configuration
-	cfg, err := config.LoadConfig(".")
-	if err != nil {
-		log.Fatalf("could not load config: %v", err)
-	}
+    // 1. Load Configuration
+    cfg, err := config.LoadConfig(".")
+    
+    // Override with environment variables if present (useful for Docker)
+    if os.Getenv("MONGODB_URI") != "" {
+        cfg.MongoURI = os.Getenv("MONGODB_URI")
+    }
 
-	// --- Logger ---
-	// This must be initialized before any other component that might log.
-	logger.InitLogger(cfg)
-	slog.Info("Logger initialized", "level", cfg.LogLevel, "format", cfg.LogFormat)
+    if err != nil {
+        log.Fatalf("could not load config: %v", err)
+    }
 
-	// // 2. Connect to Database
-	// dbClient, err := database.ConnectMongo(cfg.MongoURI, cfg.DBName)
-	// if err != nil {
-	// 	slog.Error("could not connect to MongoDB", slog.Any("error", err))
-	// 	 os.Exit(1)
-	// }
-	// defer func() {
-	// 	if err = dbClient.Disconnect(context.Background()); err != nil {
-	// 		slog.Error("Error disconnecting from MongoDB", slog.Any("error", err))
-	// 	}
-	// }()
-	// slog.Info("Successfully connected to MongoDB.")
+    // --- Logger ---
+    logger.InitLogger(cfg)
+    slog.Info("Logger initialized", "level", cfg.LogLevel, "format", cfg.LogFormat)
 
-	// 2. Connect to Database (optional)
-	var dbClient *mongo.Client
+    // 2. Connect to Database (Mandatory)
+    if cfg.MongoURI == "" {
+        slog.Error("MONGODB_URI is empty. Database connection is required.")
+        os.Exit(1)
+    }
 
-	if cfg.MongoURI != "" {
-		dbClient, err = database.ConnectMongo(cfg.MongoURI, cfg.DBName)
-		if err != nil {
-			slog.Error("could not connect to MongoDB", slog.Any("error", err))
-			os.Exit(1)
-		}
-		defer func() {
-			if err = dbClient.Disconnect(context.Background()); err != nil {
-				slog.Error("Error disconnecting from MongoDB", slog.Any("error", err))
-			}
-		}()
-		slog.Info("Successfully connected to MongoDB.")
-	} else {
-		slog.Warn("No MongoDB URI provided. Skipping database connection.")
-	}
+    dbClient, err := database.ConnectMongo(cfg.MongoURI, cfg.DBName)
+    if err != nil {
+        slog.Error("could not connect to MongoDB", slog.Any("error", err))
+        os.Exit(1)
+    }
+    
+    defer func() {
+        if err = dbClient.Disconnect(context.Background()); err != nil {
+            slog.Error("Error disconnecting from MongoDB", slog.Any("error", err))
+        }
+    }()
+    slog.Info("Successfully connected to MongoDB.")
 
-	// 3. Initialize Services (Cache, Auth)
-	cacheService := cache.NewCacheService(cfg)
-	tokenService := auth.NewTokenService(cfg.JWTSecretKey, cfg.JWTExpirationHours)
+    // 3. Initialize Services (Cache, Auth)
+    cacheService := cache.NewCacheService(cfg)
+    tokenService := auth.NewTokenService(cfg.JWTSecretKey, cfg.JWTExpirationHours)
 
-	// Preload usernames into cache if enabled
-	preloadUsernamesIntoCache(dbClient, cacheService, cfg)
+    // 4. Preload and Router (Now safe because dbClient is guaranteed not nil)
+    preloadUsernamesIntoCache(dbClient, cacheService, cfg)
+    router := setupRouter(dbClient, cfg, tokenService, cacheService)
 
-	// 4. Set up API router
-	router := setupRouter(dbClient, cfg, tokenService, cacheService)
-
-	// 5. Start Server with graceful shutdown
-	startServer(router, cfg.ServerPort)
+    // 5. Start Server
+    startServer(router, cfg.ServerPort)
 }
 
 // preloadUsernamesIntoCache queries for all usernames and loads them into the cache,
