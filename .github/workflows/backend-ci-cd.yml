@@ -45,7 +45,7 @@ jobs:
       - name: Build and Push
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          docker build -t ghcr.io/$REPO_LOWER/backend:latest ./Server
+          docker build -t ghcr.io/$REPO_LOWER/backend:latest ./Server/MuchToDo
           docker tag ghcr.io/$REPO_LOWER/backend:latest ghcr.io/$REPO_LOWER/backend:${{ github.sha }}
           docker push ghcr.io/$REPO_LOWER/backend:latest
           docker push ghcr.io/$REPO_LOWER/backend:${{ github.sha }}
