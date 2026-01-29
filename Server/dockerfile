@@ -7,7 +7,13 @@ WORKDIR /app
 #COPY go.mod go.sum ./
 COPY MuchToDo/go.mod MuchToDo/go.sum* ./
 RUN go mod download
-COPY MuchToDo/ .
+#COPY MuchToDo/ .
+COPY MuchToDo/cmd ./cmd
+COPY MuchToDo/internal ./internal
+COPY MuchToDo/docs ./docs
+
+#COPY MuchToDo/pkg ./pkg  
+
 RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api
 
 # Stage 2: Final Image

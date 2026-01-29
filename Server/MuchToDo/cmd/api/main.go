@@ -58,18 +58,37 @@ func main() {
 	logger.InitLogger(cfg)
 	slog.Info("Logger initialized", "level", cfg.LogLevel, "format", cfg.LogFormat)
 
-	// 2. Connect to Database
-	dbClient, err := database.ConnectMongo(cfg.MongoURI, cfg.DBName)
-	if err != nil {
-		slog.Error("could not connect to MongoDB", slog.Any("error", err))
-		 os.Exit(1)
-	}
-	defer func() {
-		if err = dbClient.Disconnect(context.Background()); err != nil {
-			slog.Error("Error disconnecting from MongoDB", slog.Any("error", err))
+	// // 2. Connect to Database
+	// dbClient, err := database.ConnectMongo(cfg.MongoURI, cfg.DBName)
+	// if err != nil {
+	// 	slog.Error("could not connect to MongoDB", slog.Any("error", err))
+	// 	 os.Exit(1)
+	// }
+	// defer func() {
+	// 	if err = dbClient.Disconnect(context.Background()); err != nil {
+	// 		slog.Error("Error disconnecting from MongoDB", slog.Any("error", err))
+	// 	}
+	// }()
+	// slog.Info("Successfully connected to MongoDB.")
+
+	// 2. Connect to Database (optional)
+	var dbClient *mongo.Client
+
+	if cfg.MongoURI != "" {
+		dbClient, err = database.ConnectMongo(cfg.MongoURI, cfg.DBName)
+		if err != nil {
+			slog.Error("could not connect to MongoDB", slog.Any("error", err))
+			os.Exit(1)
 		}
-	}()
-	slog.Info("Successfully connected to MongoDB.")
+		defer func() {
+			if err = dbClient.Disconnect(context.Background()); err != nil {
+				slog.Error("Error disconnecting from MongoDB", slog.Any("error", err))
+			}
+		}()
+		slog.Info("Successfully connected to MongoDB.")
+	} else {
+		slog.Warn("No MongoDB URI provided. Skipping database connection.")
+	}
 
 	// 3. Initialize Services (Cache, Auth)
 	cacheService := cache.NewCacheService(cfg)
