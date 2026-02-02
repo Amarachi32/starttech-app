@@ -222,9 +222,78 @@ func preloadUsernamesIntoCache(db *mongo.Client, cacheSvc cache.Cache, cfg confi
 }
 
 // setupRouter initializes the Gin router and sets up the routes.
-func setupRouter(db *mongo.Client, cfg config.Config, tokenSvc *auth.TokenService, cacheSvc cache.Cache) *gin.Engine {
+// func setupRouter(db *mongo.Client, cfg config.Config, tokenSvc *auth.TokenService, cacheSvc cache.Cache) *gin.Engine {
+// 	gin.SetMode(gin.ReleaseMode)
+// 	// router := gin.Default()
+// 	router := gin.New()
+
+
+// 	// Initialize collections
+// 	todoCollection := db.Database(cfg.DBName).Collection("todos")
+// 	userCollection := db.Database(cfg.DBName).Collection("users")
+
+// 	// Initialize handlers
+// 	todoHandler := handlers.NewTodoHandler(todoCollection)
+// 	userHandler := handlers.NewUserHandler(userCollection, todoCollection, tokenSvc, cacheSvc, db, cfg)
+// 	healthHandler := handlers.NewHealthHandler(db, cacheSvc, cfg.EnableCache)
+
+// 	// Middleware
+// 	corsMiddleware := middleware.CORSMiddleware(cfg.AllowedOrigins)
+// 	// corsMiddleware := middleware.CORSMiddleware2()
+// 	authMiddleware := middleware.AuthMiddleware(tokenSvc, cfg)
+
+// 	// Apply CORS middleware to the router
+// 	router.Use(corsMiddleware)
+
+// 	// Register all routes
+// 	routes.RegisterRoutes(router, userHandler, todoHandler, healthHandler, authMiddleware)
+
+// 	// A simple ping route for health checks
+// 	router.GET("/ping", func(c *gin.Context) {
+// 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
+// 	})
+
+// 	router.GET("/", func(c *gin.Context) {
+// 		c.JSON(http.StatusOK, gin.H{"message": "Welcome to MuchToDo API"})
+// 	})
+
+// 	// Test route to debug /todos issue
+// 	router.GET("/test-todos", func(c *gin.Context) {
+// 		println("=== TEST TODOS ROUTE HIT ===")
+// 		c.JSON(http.StatusOK, gin.H{"message": "Test todos route works!"})
+// 	})
+
+// 	// Handle 404
+// 	router.NoRoute(func(c *gin.Context) {
+// 		c.JSON(http.StatusNotFound, gin.H{"error": "Route not found"})
+// 	})
+
+// 	return router
+// }
+
+func setupRouter(
+	db *mongo.Client,
+	cfg config.Config,
+	tokenSvc *auth.TokenService,
+	cacheSvc cache.Cache,
+) *gin.Engine {
+
 	gin.SetMode(gin.ReleaseMode)
-	router := gin.Default()
+
+	// ✅ Use gin.New (no auto-OPTIONS)
+	router := gin.New()
+
+	// ✅ CORS MUST be first middleware
+	router.Use(middleware.CORSMiddleware(cfg.AllowedOrigins))
+
+	// ✅ Explicit OPTIONS handler (critical)
+	router.OPTIONS("/*path", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	// ✅ Standard middleware AFTER CORS
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
 
 	// Initialize collections
 	todoCollection := db.Database(cfg.DBName).Collection("todos")
@@ -232,21 +301,29 @@ func setupRouter(db *mongo.Client, cfg config.Config, tokenSvc *auth.TokenServic
 
 	// Initialize handlers
 	todoHandler := handlers.NewTodoHandler(todoCollection)
-	userHandler := handlers.NewUserHandler(userCollection, todoCollection, tokenSvc, cacheSvc, db, cfg)
+	userHandler := handlers.NewUserHandler(
+		userCollection,
+		todoCollection,
+		tokenSvc,
+		cacheSvc,
+		db,
+		cfg,
+	)
 	healthHandler := handlers.NewHealthHandler(db, cacheSvc, cfg.EnableCache)
 
 	// Middleware
-	corsMiddleware := middleware.CORSMiddleware(cfg.AllowedOrigins)
-	// corsMiddleware := middleware.CORSMiddleware2()
 	authMiddleware := middleware.AuthMiddleware(tokenSvc, cfg)
 
-	// Apply CORS middleware to the router
-	router.Use(corsMiddleware)
+	// ✅ Register routes AFTER middleware
+	routes.RegisterRoutes(
+		router,
+		userHandler,
+		todoHandler,
+		healthHandler,
+		authMiddleware,
+	)
 
-	// Register all routes
-	routes.RegisterRoutes(router, userHandler, todoHandler, healthHandler, authMiddleware)
-
-	// A simple ping route for health checks
+	// Health / sanity routes
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
@@ -255,13 +332,12 @@ func setupRouter(db *mongo.Client, cfg config.Config, tokenSvc *auth.TokenServic
 		c.JSON(http.StatusOK, gin.H{"message": "Welcome to MuchToDo API"})
 	})
 
-	// Test route to debug /todos issue
+	// Debug route
 	router.GET("/test-todos", func(c *gin.Context) {
-		println("=== TEST TODOS ROUTE HIT ===")
 		c.JSON(http.StatusOK, gin.H{"message": "Test todos route works!"})
 	})
 
-	// Handle 404
+	// 404 handler
 	router.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Route not found"})
 	})
