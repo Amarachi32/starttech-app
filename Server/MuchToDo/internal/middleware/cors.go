@@ -28,36 +28,62 @@ func CORSMiddleware2() gin.HandlerFunc {
 	}
 
 	// Return the actual middleware handler function
+	// return func(c *gin.Context) {
+	// 	// Function to check if a given origin is allowed
+	// 	isOriginAllowed := func(origin string, allowedOrigins []string) bool {
+	// 		for _, allowedOrigin := range allowedOrigins {
+	// 			if origin == allowedOrigin {
+	// 				return true
+	// 			}
+	// 		}
+	// 		return false
+	// 	}
+
+	// 	// Get the Origin header from the request
+	// 	origin := c.Request.Header.Get("Origin")
+
+	// 	// Check if the origin is allowed
+	// 	if isOriginAllowed(origin, allowedOrigins) {
+	// 		// If the origin is allowed, set CORS headers in the response
+	// 		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+	// 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+	// 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+	// 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+	// 	}
+
+	// 	// Handle preflight OPTIONS requests by aborting with status 204
+	// 	if c.Request.Method == "OPTIONS" {
+	// 		c.AbortWithStatus(204)
+	// 		return
+	// 	}
+
+	// 	// Call the next handler
+	// 	c.Next()
+	// }
+
 	return func(c *gin.Context) {
-		// Function to check if a given origin is allowed
-		isOriginAllowed := func(origin string, allowedOrigins []string) bool {
-			for _, allowedOrigin := range allowedOrigins {
-				if origin == allowedOrigin {
-					return true
-				}
-			}
-			return false
-		}
+    origin := c.Request.Header.Get("Origin")
 
-		// Get the Origin header from the request
-		origin := c.Request.Header.Get("Origin")
+    // 1. ALWAYS set these for every request
+    c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+    c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+    c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 
-		// Check if the origin is allowed
-		if isOriginAllowed(origin, allowedOrigins) {
-			// If the origin is allowed, set CORS headers in the response
-			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-			c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
-		}
+    // 2. Set the Origin header if it's in your allowed list
+    // Tip: For debugging, you can temporarily use c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+    if origin != "" && isOriginAllowed(origin, allowedOrigins) {
+        c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+    } else if origin == "" {
+        // Fallback for debugging: if origin is empty, it means CloudFront isn't forwarding it
+        c.Writer.Header().Set("Access-Control-Allow-Origin", "https://d3qh39lmclj4j6.cloudfront.net")
+    }
 
-		// Handle preflight OPTIONS requests by aborting with status 204
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
+    // 3. Handle Preflight
+    if c.Request.Method == "OPTIONS" {
+        c.AbortWithStatus(204)
+        return
+    }
 
-		// Call the next handler
-		c.Next()
-	}
+    c.Next()
+}
 }
