@@ -85,28 +85,85 @@ import (
 )
 
 // RegisterRoutes updated to use gin.IRoutes to support Grouping
+// func RegisterRoutes(
+//     router gin.IRoutes, // <--- CHANGE THIS from *gin.Engine
+//     userHandler *handlers.UserHandler,
+//     todoHandler *handlers.TodoHandler,
+//     healthHandler *handlers.HealthHandler,
+//     authMiddleware gin.HandlerFunc,
+// ) {
+//     // Public routes (Now will be /api/health)
+//     router.GET("/health", healthHandler.CheckHealth)
+
+//     // Swagger documentation route (Now will be /api/swagger/...)
+//     router.GET("/swagger/*any", func(c *gin.Context) {
+//         scheme := "http"
+//         if c.Request.TLS != nil || strings.HasPrefix(c.Request.Header.Get("X-Forwarded-Proto"), "https") {
+//             scheme = "https"
+//         }
+//         docs.SwaggerInfo.Host = c.Request.Host
+//         docs.SwaggerInfo.Schemes = []string{scheme}
+//         ginSwagger.WrapHandler(swaggerFiles.Handler)(c)
+//     })
+
+//     // Auth routes (Now will be /api/auth/...)
+//     authRoutes := router.Group("/auth")
+//     {
+//         authRoutes.POST("/register", userHandler.Register)
+//         authRoutes.POST("/login", userHandler.Login)
+//         authRoutes.POST("/logout", userHandler.Logout)
+//         authRoutes.GET("/username-check/:username", userHandler.CheckUsernameAvailability)
+//     }
+
+//     // Protected routes (Now will be /api/tasks and /api/users)
+//     protected := router.Group("")
+//     protected.Use(authMiddleware)
+//     {
+//         taskRoutes := protected.Group("/tasks")
+//         {
+//             taskRoutes.POST("", todoHandler.CreateTodo)
+//             taskRoutes.GET("", todoHandler.GetAllTodos)
+//             taskRoutes.GET("/:id", todoHandler.GetTodoByID)
+//             taskRoutes.PUT("/:id", todoHandler.UpdateTodo)
+//             taskRoutes.DELETE("/:id", todoHandler.DeleteTodo)
+//         }
+
+//         userRoutes := protected.Group("/users")
+//         {
+//             userRoutes.GET("/me", userHandler.GetCurrentUser)
+//             userRoutes.PUT("/me", userHandler.UpdateUser)
+//             userRoutes.PUT("/me/password", userHandler.ChangePassword)
+//             userRoutes.DELETE("/me", userHandler.DeleteUser)
+//         }
+//     }
+
+// }
+
+// RegisterRoutes sets up all application routes.
 func RegisterRoutes(
-    router gin.IRoutes, // <--- CHANGE THIS from *gin.Engine
+    router *gin.RouterGroup, // <--- Use *gin.RouterGroup here
     userHandler *handlers.UserHandler,
     todoHandler *handlers.TodoHandler,
     healthHandler *handlers.HealthHandler,
     authMiddleware gin.HandlerFunc,
 ) {
-    // Public routes (Now will be /api/health)
+    // Public routes
     router.GET("/health", healthHandler.CheckHealth)
 
-    // Swagger documentation route (Now will be /api/swagger/...)
+    // Swagger documentation route
     router.GET("/swagger/*any", func(c *gin.Context) {
         scheme := "http"
         if c.Request.TLS != nil || strings.HasPrefix(c.Request.Header.Get("X-Forwarded-Proto"), "https") {
             scheme = "https"
         }
+
         docs.SwaggerInfo.Host = c.Request.Host
         docs.SwaggerInfo.Schemes = []string{scheme}
+
         ginSwagger.WrapHandler(swaggerFiles.Handler)(c)
     })
 
-    // Auth routes (Now will be /api/auth/...)
+    // Now .Group() will work perfectly
     authRoutes := router.Group("/auth")
     {
         authRoutes.POST("/register", userHandler.Register)
@@ -115,7 +172,7 @@ func RegisterRoutes(
         authRoutes.GET("/username-check/:username", userHandler.CheckUsernameAvailability)
     }
 
-    // Protected routes (Now will be /api/tasks and /api/users)
+    // Protected routes
     protected := router.Group("")
     protected.Use(authMiddleware)
     {
