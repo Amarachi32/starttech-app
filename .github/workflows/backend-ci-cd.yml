@@ -9,7 +9,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     env:
-      ALLOWED_ORIGINS: https://d3qh39lmclj4j6.cloudfront.net
+      ALLOWED_ORIGINS: https://d3qh39lmclj4j6.cloudfront.net/api
     permissions:
       contents: read
       packages: write

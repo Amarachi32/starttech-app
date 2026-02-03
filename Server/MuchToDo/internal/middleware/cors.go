@@ -48,7 +48,7 @@ func CORSMiddleware2() gin.HandlerFunc {
             c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
         } else if origin == "" {
             // Fallback for debugging CloudFront forwarding
-            c.Writer.Header().Set("Access-Control-Allow-Origin", "https://d3qh39lmclj4j6.cloudfront.net")
+            c.Writer.Header().Set("Access-Control-Allow-Origin", "https://d3qh39lmclj4j6.cloudfront.net/api")
         }
 
         // Handle Preflight

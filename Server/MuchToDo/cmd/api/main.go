@@ -271,80 +271,154 @@ func preloadUsernamesIntoCache(db *mongo.Client, cacheSvc cache.Cache, cfg confi
 // 	return router
 // }
 
+// func setupRouter(
+// 	db *mongo.Client,
+// 	cfg config.Config,
+// 	tokenSvc *auth.TokenService,
+// 	cacheSvc cache.Cache,
+// ) *gin.Engine {
+
+// 	gin.SetMode(gin.ReleaseMode)
+
+// 	// ✅ Use gin.New (no auto-OPTIONS)
+// 	router := gin.New()
+
+// 	// ✅ CORS MUST be first middleware
+// 	router.Use(middleware.CORSMiddleware(cfg.AllowedOrigins))
+
+// 	// ✅ Explicit OPTIONS handler (critical)
+// 	router.OPTIONS("/*path", func(c *gin.Context) {
+// 		c.Status(http.StatusNoContent)
+// 	})
+
+// 	// ✅ Standard middleware AFTER CORS
+// 	router.Use(gin.Logger())
+// 	router.Use(gin.Recovery())
+
+// 	// Initialize collections
+// 	todoCollection := db.Database(cfg.DBName).Collection("todos")
+// 	userCollection := db.Database(cfg.DBName).Collection("users")
+
+// 	// Initialize handlers
+// 	todoHandler := handlers.NewTodoHandler(todoCollection)
+// 	userHandler := handlers.NewUserHandler(
+// 		userCollection,
+// 		todoCollection,
+// 		tokenSvc,
+// 		cacheSvc,
+// 		db,
+// 		cfg,
+// 	)
+// 	healthHandler := handlers.NewHealthHandler(db, cacheSvc, cfg.EnableCache)
+
+// 	// Middleware
+// 	authMiddleware := middleware.AuthMiddleware(tokenSvc, cfg)
+
+// 	// ✅ Register routes AFTER middleware
+// 	routes.RegisterRoutes(
+// 		router,
+// 		userHandler,
+// 		todoHandler,
+// 		healthHandler,
+// 		authMiddleware,
+// 	)
+
+// 	// Health / sanity routes
+// 	router.GET("/ping", func(c *gin.Context) {
+// 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
+// 	})
+
+// 	router.GET("/", func(c *gin.Context) {
+// 		c.JSON(http.StatusOK, gin.H{"message": "Welcome to MuchToDo API"})
+// 	})
+
+// 	// Debug route
+// 	router.GET("/test-todos", func(c *gin.Context) {
+// 		c.JSON(http.StatusOK, gin.H{"message": "Test todos route works!"})
+// 	})
+
+// 	// 404 handler
+// 	router.NoRoute(func(c *gin.Context) {
+// 		c.JSON(http.StatusNotFound, gin.H{"error": "Route not found"})
+// 	})
+
+// 	return router
+// }
+
 func setupRouter(
-	db *mongo.Client,
-	cfg config.Config,
-	tokenSvc *auth.TokenService,
-	cacheSvc cache.Cache,
+    db *mongo.Client,
+    cfg config.Config,
+    tokenSvc *auth.TokenService,
+    cacheSvc cache.Cache,
 ) *gin.Engine {
 
-	gin.SetMode(gin.ReleaseMode)
+    gin.SetMode(gin.ReleaseMode)
+    router := gin.New()
 
-	// ✅ Use gin.New (no auto-OPTIONS)
-	router := gin.New()
+    // 1. CORS MUST be first
+    router.Use(middleware.CORSMiddleware(cfg.AllowedOrigins))
 
-	// ✅ CORS MUST be first middleware
-	router.Use(middleware.CORSMiddleware(cfg.AllowedOrigins))
+    // 2. Standard middleware
+    router.Use(gin.Logger())
+    router.Use(gin.Recovery())
 
-	// ✅ Explicit OPTIONS handler (critical)
-	router.OPTIONS("/*path", func(c *gin.Context) {
-		c.Status(http.StatusNoContent)
-	})
+    // --- START OF UPDATE ---
 
-	// ✅ Standard middleware AFTER CORS
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
+    // 3. Create the API Group
+    // This matches the CloudFront path pattern /api/*
+    api := router.Group("/api")
+    {
+        // Explicit OPTIONS handler inside the group
+        api.OPTIONS("/*path", func(c *gin.Context) {
+            c.Status(http.StatusNoContent)
+        })
 
-	// Initialize collections
-	todoCollection := db.Database(cfg.DBName).Collection("todos")
-	userCollection := db.Database(cfg.DBName).Collection("users")
+        // Initialize collections
+        todoCollection := db.Database(cfg.DBName).Collection("todos")
+        userCollection := db.Database(cfg.DBName).Collection("users")
 
-	// Initialize handlers
-	todoHandler := handlers.NewTodoHandler(todoCollection)
-	userHandler := handlers.NewUserHandler(
-		userCollection,
-		todoCollection,
-		tokenSvc,
-		cacheSvc,
-		db,
-		cfg,
-	)
-	healthHandler := handlers.NewHealthHandler(db, cacheSvc, cfg.EnableCache)
+        // Initialize handlers
+        todoHandler := handlers.NewTodoHandler(todoCollection)
+        userHandler := handlers.NewUserHandler(
+            userCollection,
+            todoCollection,
+            tokenSvc,
+            cacheSvc,
+            db,
+            cfg,
+        )
+        healthHandler := handlers.NewHealthHandler(db, cacheSvc, cfg.EnableCache)
 
-	// Middleware
-	authMiddleware := middleware.AuthMiddleware(tokenSvc, cfg)
+        // Middleware
+        authMiddleware := middleware.AuthMiddleware(tokenSvc, cfg)
 
-	// ✅ Register routes AFTER middleware
-	routes.RegisterRoutes(
-		router,
-		userHandler,
-		todoHandler,
-		healthHandler,
-		authMiddleware,
-	)
+        // Pass the 'api' group instead of the 'router' to your RegisterRoutes function
+        // This automatically prefixes all your routes with /api
+        routes.RegisterRoutes(
+            api, // <--- Change this from 'router' to 'api'
+            userHandler,
+            todoHandler,
+            healthHandler,
+            authMiddleware,
+        )
 
-	// Health / sanity routes
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "pong"})
-	})
+        // Add Swagger here if needed (e.g., /api/swagger/index.html)
+        // api.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+    }
 
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Welcome to MuchToDo API"})
-	})
+    // --- END OF UPDATE ---
 
-	// Debug route
-	router.GET("/test-todos", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Test todos route works!"})
-	})
+    // Keep global health check outside the /api group for the Load Balancer
+    router.GET("/health", func(c *gin.Context) {
+        c.JSON(http.StatusOK, gin.H{"status": "UP"})
+    })
 
-	// 404 handler
-	router.NoRoute(func(c *gin.Context) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Route not found"})
-	})
+    router.NoRoute(func(c *gin.Context) {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Route not found"})
+    })
 
-	return router
+    return router
 }
-
 // startServer starts the HTTP server and handles graceful shutdown.
 func startServer(router *gin.Engine, port string) {
 	srv := &http.Server{

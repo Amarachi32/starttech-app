@@ -40,7 +40,7 @@ func LoadConfig(path string) (config Config, err error) {
 	// viper.SetDefault("ALLOWED_ORIGINS", []string{"https://d3qh39lmclj4j6.cloudfront.net"})
 	viper.SetDefault("ALLOWED_ORIGINS", []string{
 		"http://localhost:5173",
-		"https://d3qh39lmclj4j6.cloudfront.net",
+		"https://d3qh39lmclj4j6.cloudfront.net/api",
 	})
 	err = viper.ReadInConfig()
 	if err != nil {
