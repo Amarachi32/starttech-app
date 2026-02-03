@@ -355,29 +355,24 @@ func setupRouter(
     gin.SetMode(gin.ReleaseMode)
     router := gin.New()
 
-    // 1. CORS MUST be first
+    // 1. Global Middleware
     router.Use(middleware.CORSMiddleware(cfg.AllowedOrigins))
-
-    // 2. Standard middleware
     router.Use(gin.Logger())
     router.Use(gin.Recovery())
 
-    // --- START OF UPDATE ---
-
-    // 3. Create the API Group
-    // This matches the CloudFront path pattern /api/*
+    // 2. Create the API Group
     api := router.Group("/api")
     {
-        // Explicit OPTIONS handler inside the group
+        // OPTIONS handler for the group
         api.OPTIONS("/*path", func(c *gin.Context) {
             c.Status(http.StatusNoContent)
         })
 
-        // Initialize collections
+        // FIRST: Initialize collections
         todoCollection := db.Database(cfg.DBName).Collection("todos")
         userCollection := db.Database(cfg.DBName).Collection("users")
 
-        // Initialize handlers
+        // SECOND: Initialize handlers
         todoHandler := handlers.NewTodoHandler(todoCollection)
         userHandler := handlers.NewUserHandler(
             userCollection,
@@ -389,26 +384,21 @@ func setupRouter(
         )
         healthHandler := handlers.NewHealthHandler(db, cacheSvc, cfg.EnableCache)
 
-        // Middleware
+        // THIRD: Initialize middleware
         authMiddleware := middleware.AuthMiddleware(tokenSvc, cfg)
 
-        // Pass the 'api' group instead of the 'router' to your RegisterRoutes function
-        // This automatically prefixes all your routes with /api
+        // FOURTH: Now that everything above exists, register the routes
         routes.RegisterRoutes(
-            api, // <--- Change this from 'router' to 'api'
+            api, 
             userHandler,
             todoHandler,
             healthHandler,
             authMiddleware,
         )
-
-        // Add Swagger here if needed (e.g., /api/swagger/index.html)
-        // api.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
     }
 
-    // --- END OF UPDATE ---
-
-    // Keep global health check outside the /api group for the Load Balancer
+    // 3. Health check for the AWS ALB (Target Group)
+    // IMPORTANT: If you use "/health" here, your Terraform must look for "/health"
     router.GET("/health", func(c *gin.Context) {
         c.JSON(http.StatusOK, gin.H{"status": "UP"})
     })
@@ -419,6 +409,7 @@ func setupRouter(
 
     return router
 }
+
 // startServer starts the HTTP server and handles graceful shutdown.
 func startServer(router *gin.Engine, port string) {
 	srv := &http.Server{
